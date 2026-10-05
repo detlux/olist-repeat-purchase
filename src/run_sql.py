@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 
 import pandas as pd
+from sqlalchemy import text
 
 from db import get_engine
 
@@ -11,10 +12,12 @@ pd.set_option("display.max_columns", None)
 
 def main(path):
     sql = Path(path).read_text(encoding="utf-8")
-    engine = get_engine()
-    for stmt in filter(None, (s.strip() for s in sql.split(";"))):
-        print(pd.read_sql(stmt, engine).to_string(index=False))
-        print()
+    with get_engine().begin() as conn:
+        for stmt in filter(None, (s.strip() for s in sql.split(";"))):
+            res = conn.execute(text(stmt))
+            if res.returns_rows:
+                print(pd.DataFrame(res.fetchall(), columns=res.keys()).to_string(index=False))
+                print()
 
 
 if __name__ == "__main__":
